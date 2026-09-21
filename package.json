@@ -1,0 +1,11 @@
+{
+  "name": "bot-telegram-go",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "telegraf": "^4.14.0",
+    "dotenv": "^16.3.0",
+    "csv-parser": "^3.0.0"
+  }
+}

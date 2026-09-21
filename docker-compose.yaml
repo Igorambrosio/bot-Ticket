@@ -1,0 +1,10 @@
+services:
+  bot-bradesco:
+    build: .
+    container_name: bot-telegram-bradesco
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ~/docker/bot-bradesco/Bradesco Migrações Ticket.csv:/usr/src/app/Bradesco Migrações Ticket.csv
+      - ~/docker/bot-bradesco/Bradesco_Fase_2.csv:/usr/src/app/Bradesco_Fase_2.csv

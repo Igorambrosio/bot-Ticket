@@ -1,0 +1,12 @@
+# Dependências do Node
+node_modules/
+
+# Variáveis de Ambiente (Segurança)
+.env
+
+# Planilhas locais / Dados
+*.csv
+
+# Logs e arquivos temporários
+*.log
+.DS_Store
