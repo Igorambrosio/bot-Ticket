@@ -34,11 +34,7 @@ async function buscarFase1(alvo) {
         const stream = fs.createReadStream(caminhoArquivo, { encoding: 'utf8' })
             .pipe(csv({
                 separator: ',',
-<<<<<<< HEAD
-                mapHeaders: ({ header, index }) => header ? header.trim() : index
-=======
                 mapHeaders: ({ header }) => header ? header.replace(/^\ufeff/, '').trim() : header
->>>>>>> 00a798e (fix: ajusta parsing do csv e adiciona logs de erro detalhados do freshdesk)
             }))
             .on('data', (row) => {
                 const juncaoRaw = row['JUNÇÃO SERVIÇO'] || row['JUNCAO SERVIÇO'] || row['JUNÇAO'] || row['JUNCAO'] || '';
@@ -50,7 +46,7 @@ async function buscarFase1(alvo) {
                         juncao: String(juncaoRaw).trim(),
                         nome: row['NOME JUNÇÃO SERVIÇO'] || row['NOME JUNCAO SERVIÇO'] || row['NOME FANTASIA'] || 'N/A',
                         rua: row['ENDERECO-PONTA B'] || row['ENDEREÇO-PONTA B'] || row['Logradouro'] || '',
-                        numero: row['NUMERO-PONTA B'] || row['NÚMERO-PONTA B'] || row['Número'] || 'S/N',
+                        numero: row['NUMERO-PONTA B'] || row['NÚMERO-PONTA B'] || row['Número'] || row['Numero'] || 'S/N',
                         bairro: row['BAIRRO-PONTA B'] || row['Bairro'] || 'N/A',
                         cidade: row['LOCALIDADE-PONTA B'] || row['Cidade'] || '',
                         uf: row['ESTADO-PONTA B'] || row['UF'] || '',
@@ -68,6 +64,7 @@ async function buscarFase1(alvo) {
     });
 }
 
+// --- BUSCA FASE 2 (Bradesco_Fase_2.csv) ---
 async function buscarFase2(alvo) {
     return new Promise((resolve) => {
         let encontrada = null;
@@ -78,7 +75,7 @@ async function buscarFase2(alvo) {
 
         const stream = fs.createReadStream(caminhoArquivo, { encoding: 'utf8' })
             .pipe(csv({
-                separator: ',',
+                separator: ';', // Ajustado para ponto e vírgula
                 mapHeaders: ({ header }) => header ? header.replace(/^\ufeff/, '').trim() : header
             }))
             .on('data', (row) => {
@@ -97,9 +94,9 @@ async function buscarFase2(alvo) {
                         fase: 2,
                         juncao: juncaoSimples || juncaoServico || alvo,
                         nome: row['NOME FANTASIA'] ? row['NOME FANTASIA'].trim() : 'N/A',
-                        endereco: `${ruaFormatada}, ${row['Número'] || 'S/N'} - ${row['Bairro'] || ''}, ${row['Cidade'] || ''} - ${row['UF'] || ''}`,
+                        endereco: `${ruaFormatada}, ${row['Número'] || row['Numero'] || 'S/N'} - ${row['Bairro'] || ''}, ${row['Cidade'] || ''} - ${row['UF'] || ''}`,
                         rua: ruaFormatada,
-                        numero: row['Número'] ? row['Número'].trim() : 'S/N',
+                        numero: row['Número'] || row['Numero'] ? (row['Número'] || row['Numero']).trim() : 'S/N',
                         bairro: row['Bairro'] ? row['Bairro'].trim() : 'N/A',
                         cidade: row['Cidade'] ? row['Cidade'].trim() : '',
                         uf: row['UF'] ? row['UF'].trim() : '',
@@ -120,10 +117,7 @@ async function buscarFase2(alvo) {
 async function buscarNoCsv(juncaoAlvo) {
     const alvo = String(juncaoAlvo).trim();
     
-    // Tenta primeiro na Fase 1 (Migração)
     let dados = await buscarFase1(alvo);
-    
-    // Se não encontrou, tenta na Fase 2
     if (!dados) {
         dados = await buscarFase2(alvo);
     }
@@ -131,6 +125,7 @@ async function buscarNoCsv(juncaoAlvo) {
     return dados;
 }
 
+// ---------------- COMANDO /bradesco (REMOTO) ----------------
 bot.command('bradesco', async (ctx) => {
     const msg = ctx.message.text.trim().split(/\s+/);
     if (msg.length < 2) return ctx.reply('⚠️ Use: /bradesco [Junção]');
@@ -152,8 +147,11 @@ bot.command('bradesco', async (ctx) => {
             group_id: 47000659864,
             description: `Abaixo dados do Atendimento remoto - Bradesco Migração - Agência: ${juncao}<br><br> Endereço: ${dados.rua}, ${dados.numero}, ${dados.cidade}, ${dados.uf}<br>`,
             custom_fields: {
+                cf_tipo_de_atendimento: "Remoto",
+                cf_localidade: String(dados.juncao),
                 cf_ocorreu_sada_no_estoque: false, 
-                cf_se_ocorreu_sada_estoque_informar_o_id: "ñ" 
+                cf_se_ocorreu_sada_estoque_informar_o_id: "ñ",
+                cf_ticket_interno_clienteoperadora: "ñ"
             }
         };
 
@@ -165,6 +163,7 @@ bot.command('bradesco', async (ctx) => {
     }
 });
 
+// ---------------- COMANDO /fase2 (CAMPO) ----------------
 bot.command('fase2', async (ctx) => {
     const msg = ctx.message.text.trim().split(/\s+/);
     if (msg.length < 2) return ctx.reply('⚠️ Use: /fase2 [Junção]');
@@ -209,8 +208,10 @@ bot.command('fase2', async (ctx) => {
             description: descriptionHtml,
             custom_fields: {
                 cf_tipo_de_atendimento: "Campo",
+                cf_localidade: String(dados.juncao),
                 cf_ocorreu_sada_no_estoque: false, 
-                cf_se_ocorreu_sada_estoque_informar_o_id: "ñ" 
+                cf_se_ocorreu_sada_estoque_informar_o_id: "ñ",
+                cf_ticket_interno_clienteoperadora: "ñ"
             }
         };
 
@@ -222,11 +223,8 @@ bot.command('fase2', async (ctx) => {
     }
 });
 
+// ---------------- COMANDO /campo (CAMPO) ----------------
 bot.command('campo', async (ctx) => {
-<<<<<<< HEAD
-    // Normaliza espaços invisíveis e quebras de linha enviadas pelo Telegram
-=======
->>>>>>> 00a798e (fix: ajusta parsing do csv e adiciona logs de erro detalhados do freshdesk)
     const args = ctx.message.text.trim().split(/\s+/);
     if (args.length < 2) return ctx.reply('⚠️ Use: /campo [Junção]');
 
@@ -245,10 +243,6 @@ bot.command('campo', async (ctx) => {
 
         console.log(`✅ [LOG] Dados encontrados na Fase ${dados.fase}:`, dados);
 
-<<<<<<< HEAD
-        // Trata campos nulos/vazios para não quebrar a string HTML
-=======
->>>>>>> 00a798e (fix: ajusta parsing do csv e adiciona logs de erro detalhados do freshdesk)
         const bairro = dados.bairro ? dados.bairro : 'N/A';
         const cep = dados.cep ? dados.cep : 'N/A';
 
@@ -260,11 +254,7 @@ bot.command('campo', async (ctx) => {
             `<b>Serviço:</b> INSTALAÇÃO<br>` +
             `<b>Operadora:</b> CLARO EMPRESAS<br>` +
             `<b>Endereço:</b> ${dados.rua}, ${dados.numero}<br>` +
-<<<<<<< HEAD
-            `<b>Bairro:</b> <br>` + 
-=======
             `<b>Bairro:</b> ${bairro}<br>` + 
->>>>>>> 00a798e (fix: ajusta parsing do csv e adiciona logs de erro detalhados do freshdesk)
             `<b>Cidade:</b> ${dados.cidade}<br>` +
             `<b>UF:</b> ${dados.uf}<br>` +
             `<b>CEP:</b> ${cep}<br>` +
@@ -285,8 +275,10 @@ bot.command('campo', async (ctx) => {
             description: descriptionHtml,
             custom_fields: { 
                 cf_tipo_de_atendimento: "Campo", 
+                cf_localidade: String(dados.juncao),
                 cf_ocorreu_sada_no_estoque: false, 
-                cf_se_ocorreu_sada_estoque_informar_o_id: "ñ" 
+                cf_se_ocorreu_sada_estoque_informar_o_id: "ñ",
+                cf_ticket_interno_clienteoperadora: "ñ"
             }
         };
 
@@ -295,11 +287,7 @@ bot.command('campo', async (ctx) => {
         ctx.reply(`✅ TICKET DE CAMPO #${res.data.id} criado!\n📍 Agência: ${dados.juncao} - ${dados.nome}\n🔗 https://${process.env.FRESHDESK_DOMAIN}.freshdesk.com/a/tickets/${res.data.id}`);
     } catch (error) {
         console.error("❌ [LOG ERRO /campo]:", error.response?.data || error.message);
-<<<<<<< HEAD
-        ctx.reply('❌ Erro ao criar ticket de campo.');
-=======
         ctx.reply(`❌ Erro Freshdesk: ${JSON.stringify(error.response?.data?.errors || error.message)}`);
->>>>>>> 00a798e (fix: ajusta parsing do csv e adiciona logs de erro detalhados do freshdesk)
     }
 });
 
